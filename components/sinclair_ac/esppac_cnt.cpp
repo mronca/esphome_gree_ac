@@ -231,7 +231,7 @@ void SinclairACCNT::send_packet()
     /* FAN SPEED --------------------------------------------------------------------------- */
     /* below will default to AUTO */
     uint8_t fanSpeed1 = 0;
-    uint8_t fanSpeed2 = 0;
+    // uint8_t fanSpeed2 = 0;
     bool    fanQuiet  = false;
     bool    fanTurbo  = false;
     if (this->has_custom_fan_mode())
@@ -241,70 +241,70 @@ void SinclairACCNT::send_packet()
         if (strcmp(custom_fan_mode, fan_modes::FAN_AUTO) == 0)
         {
             fanSpeed1 = 0;
-            fanSpeed2 = 0;
+            // fanSpeed2 = 0;
             fanQuiet  = false;
             fanTurbo  = false;
         }
         else if (strcmp(custom_fan_mode, fan_modes::FAN_LOW) == 0)
         {
             fanSpeed1 = 1;
-            fanSpeed2 = 1;
+            // fanSpeed2 = 1;
             fanQuiet  = false;
             fanTurbo  = false;
         }
         else if (strcmp(custom_fan_mode, fan_modes::FAN_QUIET) == 0)
         {
             fanSpeed1 = 1;
-            fanSpeed2 = 1;
+            // fanSpeed2 = 1;
             fanQuiet  = true;
             fanTurbo  = false;
         }
         else if (strcmp(custom_fan_mode, fan_modes::FAN_MEDL) == 0)
         {
             fanSpeed1 = 2;
-            fanSpeed2 = 2;
+            // fanSpeed2 = 2;
             fanQuiet  = false;
             fanTurbo  = false;
         }
         else if (strcmp(custom_fan_mode, fan_modes::FAN_MED) == 0)
         {
             fanSpeed1 = 3;
-            fanSpeed2 = 2;
+            // fanSpeed2 = 2;
             fanQuiet  = false;
             fanTurbo  = false;
         }
         else if (strcmp(custom_fan_mode, fan_modes::FAN_MEDH) == 0)
         {
             fanSpeed1 = 4;
-            fanSpeed2 = 3;
+            // fanSpeed2 = 3;
             fanQuiet  = false;
             fanTurbo  = false;
         }
         else if (strcmp(custom_fan_mode, fan_modes::FAN_HIGH) == 0)
         {
             fanSpeed1 = 5;
-            fanSpeed2 = 3;
+            // fanSpeed2 = 3;
             fanQuiet  = false;
             fanTurbo  = false;
         }
         else if (strcmp(custom_fan_mode, fan_modes::FAN_TURBO) == 0)
         {
             fanSpeed1 = 5;
-            fanSpeed2 = 3;
+            // fanSpeed2 = 3;
             fanQuiet  = false;
             fanTurbo  = true;
         }
         else
         {
             fanSpeed1 = 0;
-            fanSpeed2 = 0;
+            // fanSpeed2 = 0;
             fanQuiet  = false;
             fanTurbo  = false;
         }
     }
 
     packet[protocol::REPORT_FAN_SPD1_BYTE] |= (fanSpeed1 << protocol::REPORT_FAN_SPD1_POS);
-    packet[protocol::REPORT_FAN_SPD2_BYTE] |= (fanSpeed2 << protocol::REPORT_FAN_SPD2_POS);
+    // packet[protocol::REPORT_FAN_SPD2_BYTE] |= (fanSpeed2 << protocol::REPORT_FAN_SPD2_POS);
     if (fanTurbo)
     {
         packet[protocol::REPORT_FAN_TURBO_BYTE] |= protocol::REPORT_FAN_TURBO_MASK;
@@ -716,60 +716,24 @@ climate::ClimateMode SinclairACCNT::determine_mode()
 
 const char* SinclairACCNT::determine_fan_mode()
 {
-    uint8_t fanSpeed1 = (this->serialProcess_.data[protocol::REPORT_FAN_SPD1_BYTE]  & protocol::REPORT_FAN_SPD1_MASK) >> protocol::REPORT_FAN_SPD1_POS;
-    uint8_t fanSpeed2 = (this->serialProcess_.data[protocol::REPORT_FAN_SPD2_BYTE]  & protocol::REPORT_FAN_SPD2_MASK) >> protocol::REPORT_FAN_SPD2_POS;
-    bool    fanQuiet  = (this->serialProcess_.data[protocol::REPORT_FAN_QUIET_BYTE] & protocol::REPORT_FAN_QUIET_MASK) != 0;
-    bool    fanTurbo  = (this->serialProcess_.data[protocol::REPORT_FAN_TURBO_BYTE] & protocol::REPORT_FAN_TURBO_MASK) != 0;
+    uint8_t fanSpeed = (this->serialProcess_.data[protocol::REPORT_FAN_SPD1_BYTE] & protocol::REPORT_FAN_SPD1_MASK) >> protocol::REPORT_FAN_SPD1_POS;
+    bool    fanQuiet = (this->serialProcess_.data[protocol::REPORT_FAN_QUIET_BYTE] & protocol::REPORT_FAN_QUIET_MASK) != 0;
+    bool    fanTurbo = (this->serialProcess_.data[protocol::REPORT_FAN_TURBO_BYTE] & protocol::REPORT_FAN_TURBO_MASK) != 0;
 
-    if      (fanSpeed1 == 0 && fanSpeed2 == 0 && fanQuiet == false && fanTurbo == false)
+    ESP_LOGV(TAG, "Fan decode: spd=%d quiet=%d turbo=%d", fanSpeed, (int)fanQuiet, (int)fanTurbo);
+
+    if      (fanSpeed == 0 && !fanQuiet && !fanTurbo) return fan_modes::FAN_AUTO;
+    else if (fanSpeed == 1 && !fanQuiet && !fanTurbo) return fan_modes::FAN_LOW;
+    else if (fanSpeed == 1 &&  fanQuiet && !fanTurbo) return fan_modes::FAN_QUIET;
+    else if (fanSpeed == 2 && !fanQuiet && !fanTurbo) return fan_modes::FAN_MEDL;
+    else if (fanSpeed == 3 && !fanQuiet && !fanTurbo) return fan_modes::FAN_MED;
+    else if (fanSpeed == 4 && !fanQuiet && !fanTurbo) return fan_modes::FAN_MEDH;
+    else if (fanSpeed == 5 && !fanQuiet && !fanTurbo) return fan_modes::FAN_HIGH;
+    else if (fanSpeed == 5 && !fanQuiet &&  fanTurbo) return fan_modes::FAN_TURBO;
+    else
     {
-        return fan_modes::FAN_AUTO;
-    }
-    else if (fanSpeed1 == 1 && fanSpeed2 == 1 && fanQuiet == false && fanTurbo == false)
-    {
-        return fan_modes::FAN_LOW;
-    }
-    else if (fanSpeed1 == 1 && fanSpeed2 == 0 && fanQuiet == false && fanTurbo == false) // ← ADD THIS
-    {
-        return fan_modes::FAN_LOW;
-    }
-    else if (fanSpeed1 == 1 && fanSpeed2 == 1 && fanQuiet == true  && fanTurbo == false)
-    {
-        return fan_modes::FAN_QUIET;
-    }
-    else if (fanSpeed1 == 1 && fanSpeed2 == 0 && fanQuiet == true  && fanTurbo == false) // ← ADD THIS
-    {
-        return fan_modes::FAN_QUIET;
-    }
-    else if (fanSpeed1 == 2 && fanSpeed2 == 2 && fanQuiet == false && fanTurbo == false)
-    {
-        return fan_modes::FAN_MEDL;
-    }
-    else if (fanSpeed1 == 3 && fanSpeed2 == 2 && fanQuiet == false && fanTurbo == false)
-    {
-        return fan_modes::FAN_MED;
-    }
-    else if (fanSpeed1 == 4 && fanSpeed2 == 3 && fanQuiet == false && fanTurbo == false)
-    {
-        return fan_modes::FAN_MEDH;
-    }
-    else if (fanSpeed1 == 5 && fanSpeed2 == 3 && fanQuiet == false && fanTurbo == false)
-    {
-        return fan_modes::FAN_HIGH;
-    }
-    else if (fanSpeed1 == 5 && fanSpeed2 == 3 && fanQuiet == false && fanTurbo == true )
-    {
-        return fan_modes::FAN_TURBO;
-    }
-    else 
-    {
-        ESP_LOGW(TAG, "Received unknown fan mode (spd1=%d spd2=%d quiet=%d turbo=%d)",
-                 fanSpeed1, fanSpeed2, (int)fanQuiet, (int)fanTurbo);
-        // Preserve current state instead of defaulting to AUTO and triggering a loop
-        if (this->has_custom_fan_mode())
-        {
-            return this->get_custom_fan_mode().c_str();
-        }
+        ESP_LOGW(TAG, "Received unknown fan mode (spd=%d quiet=%d turbo=%d)", fanSpeed, (int)fanQuiet, (int)fanTurbo);
+        if (this->has_custom_fan_mode()) return this->get_custom_fan_mode().c_str();
         return fan_modes::FAN_AUTO;
     }
 }
