@@ -38,7 +38,7 @@ void esphome::sinclair_ac::SinclairAC::setup()
                                            fan_modes::FAN_MEDL, fan_modes::FAN_MED, fan_modes::FAN_MEDH,
                                            fan_modes::FAN_HIGH, fan_modes::FAN_TURBO});
 }
-}
+
 
 void esphome::sinclair_ac::SinclairAC::loop()
 {
