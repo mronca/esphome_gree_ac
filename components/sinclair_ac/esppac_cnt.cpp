@@ -594,15 +594,18 @@ void SinclairACCNT::handle_packet()
         this->serialProcess_.data.pop_back();  /* remove checksum */
         /* now process the data */
         this->processUnitReport();
-        // Only publish if something actually changed
-        if (this->mode != this->last_mode_ || 
-            this->current_temperature != this->last_temp_ ||
-            this->target_temperature != this->last_target_temp_) {
-          
-          this->last_mode_ = this->mode;
-          this->last_temp_ = this->current_temperature;
-          this->last_target_temp_ = this->target_temperature;
-          
+        uint32_t now = millis();
+        bool state_changed = (this->mode != last_mode_ ||
+                              this->current_temperature != last_current_temp_ ||
+                              this->target_temperature != last_target_temp_);
+        bool heartbeat_due = (now - last_publish_ms_) >= 5000;
+
+        if (state_changed || heartbeat_due) {
+          last_mode_ = this->mode;
+          last_current_temp_ = this->current_temperature;
+          last_target_temp_ = this->target_temperature;
+          last_publish_ms_ = now;
+
           this->publish_state();
         }
     }
