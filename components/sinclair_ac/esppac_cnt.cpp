@@ -594,7 +594,17 @@ void SinclairACCNT::handle_packet()
         this->serialProcess_.data.pop_back();  /* remove checksum */
         /* now process the data */
         this->processUnitReport();
-        this->publish_state();
+        // Only publish if something actually changed
+        if (this->mode != this->last_mode_ || 
+            this->current_temperature != this->last_temp_ ||
+            this->target_temperature != this->last_target_temp_) {
+          
+          this->last_mode_ = this->mode;
+          this->last_temp_ = this->current_temperature;
+          this->last_target_temp_ = this->target_temperature;
+          
+          this->publish_state();
+        }
     }
     else 
     {

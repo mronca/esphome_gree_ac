@@ -142,6 +142,11 @@ class SinclairAC : public Component, public uart::UARTDevice, public climate::Cl
         uint32_t last_packet_received_;  // Stores the time at which the last packet was received
         bool wait_response_;
 
+        // State change tracking for publish guard
+        climate::ClimateMode last_mode_ = climate::CLIMATE_MODE_OFF;
+        float last_temp_ = 0.0f;
+        float last_target_temp_ = 0.0f;
+
         climate::ClimateTraits traits() override;
 
         void read_data();

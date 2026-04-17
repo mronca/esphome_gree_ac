@@ -37,6 +37,11 @@ void SinclairAC::setup()
     this->set_supported_custom_fan_modes({fan_modes::FAN_AUTO, fan_modes::FAN_QUIET, fan_modes::FAN_LOW,
                                            fan_modes::FAN_MEDL, fan_modes::FAN_MED, fan_modes::FAN_MEDH,
                                            fan_modes::FAN_HIGH, fan_modes::FAN_TURBO});
+
+    // Initialize last state values for change detection
+    this->last_mode_ = this->mode;
+    this->last_temp_ = this->current_temperature;
+    this->last_target_temp_ = this->target_temperature;
 }
 
 void SinclairAC::loop()
