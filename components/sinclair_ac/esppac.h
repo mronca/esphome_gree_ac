@@ -174,7 +174,7 @@ class SinclairAC : public Component, public uart::UARTDevice, public climate::Cl
         climate::ClimateAction determine_action();
 
         void log_packet(std::vector<uint8_t> data, bool outgoing = false);
-    private:
+    protected:
         // State change guard
         climate::ClimateMode last_mode_{};
         float last_current_temp_{NAN};
