@@ -598,7 +598,7 @@ void SinclairACCNT::handle_packet()
         bool state_changed = (this->mode != last_mode_ ||
                               this->current_temperature != last_current_temp_ ||
                               this->target_temperature != last_target_temp_);
-        bool heartbeat_due = (now - last_publish_ms_) >= 5000;
+        bool heartbeat_due = (now - last_publish_ms_) >= 10000;
 
         if (state_changed || heartbeat_due) {
           last_mode_ = this->mode;
