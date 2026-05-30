@@ -42,6 +42,7 @@ void SinclairACCNT::loop()
             this->state_ = ACState::Ready;  
             Component::status_clear_error();
             this->last_packet_sent_ = millis();
+            ESP_LOGI(TAG, "AC state changed to Ready");
         }
 
         if (this->update_ == ACUpdate::NoUpdate)
@@ -71,18 +72,23 @@ void SinclairACCNT::loop()
 void SinclairACCNT::control(const climate::ClimateCall &call)
 {
     if (this->state_ != ACState::Ready)
+    {
+        ESP_LOGW(TAG, "Control request ignored because AC not ready (state=%d)", (int)this->state_);
         return;
+    }
+
+    ESP_LOGI(TAG, "Climate control request received");
 
     if (call.get_mode().has_value())
     {
-        ESP_LOGV(TAG, "Requested mode change");
+        ESP_LOGI(TAG, "Requested mode change: %d", (int)*call.get_mode());
         this->update_ = ACUpdate::UpdateStart;
         this->mode = *call.get_mode();
     }
 
     if (call.get_target_temperature().has_value())
     {
-        ESP_LOGV(TAG, "Requested target teperature change");
+        ESP_LOGI(TAG, "Requested target temperature change: %.1f", *call.get_target_temperature());
         this->update_ = ACUpdate::UpdateStart;
         this->target_temperature = *call.get_target_temperature();
         if (this->target_temperature < MIN_TEMPERATURE)
@@ -97,7 +103,7 @@ void SinclairACCNT::control(const climate::ClimateCall &call)
 
     if (call.has_custom_fan_mode())
     {
-        ESP_LOGV(TAG, "Requested fan mode change");
+        ESP_LOGI(TAG, "Requested fan mode change: %s", call.get_custom_fan_mode().c_str());
         this->update_ = ACUpdate::UpdateStart;
         this->set_custom_fan_mode_(call.get_custom_fan_mode());
     }
@@ -148,6 +154,15 @@ void SinclairACCNT::send_packet()
     {
         /* do net send packet too often or when we are waiting for report to come */
         return;
+    }
+
+    if (this->update_ != ACUpdate::NoUpdate) {
+        ESP_LOGI(TAG, "Sending update packet (update=%d mode=%d fan=%s swing_v=%s swing_h=%s)",
+                 (int)this->update_,
+                 (int)this->mode,
+                 this->has_custom_fan_mode() ? this->get_custom_fan_mode().c_str() : "none",
+                 this->vertical_swing_state_.c_str(),
+                 this->horizontal_swing_state_.c_str());
     }
     
     packet[protocol::SET_CONST_02_BYTE] = protocol::SET_CONST_02_VAL; /* Some always 0x02 byte... */
