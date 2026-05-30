@@ -28,6 +28,7 @@ void SinclairACCNT::loop()
         this->wait_response_ = false;
         /* log for ESPHome debug */
         log_packet(this->serialProcess_.data);
+        ESP_LOGI(TAG, "RX packet: %s", format_hex_pretty(this->serialProcess_.data).c_str());
 
         if (!verify_packet())  /* Verify length, header, counter and checksum */
         {
@@ -531,6 +532,9 @@ void SinclairACCNT::send_packet()
 
     this->last_packet_sent_ = millis();  /* Save the time when we sent the last packet */
     this->wait_response_ = true;
+    if (this->update_ != ACUpdate::NoUpdate) {
+        ESP_LOGI(TAG, "TX packet: %s", format_hex_pretty(packet).c_str());
+    }
     write_array(packet);                 /* Sent the packet by UART */
     log_packet(packet, true);            /* Log uart for debug purposes */
 
@@ -615,13 +619,20 @@ void SinclairACCNT::handle_packet()
                               this->target_temperature != last_target_temp_);
         bool heartbeat_due = (now - last_publish_ms_) >= 10000;
 
-        if (state_changed || heartbeat_due) {
+                if (state_changed || heartbeat_due) {
           last_mode_ = this->mode;
           last_current_temp_ = this->current_temperature;
           last_target_temp_ = this->target_temperature;
           last_publish_ms_ = now;
 
-          this->publish_state();
+                    ESP_LOGI(TAG, "State changed: mode=%d custom_fan=%s swing_mode=%d curr=%.2f target=%.2f",
+                                     (int)this->mode,
+                                     this->has_custom_fan_mode() ? this->get_custom_fan_mode().c_str() : "none",
+                                     (int)this->swing_mode,
+                                     this->current_temperature,
+                                     this->target_temperature);
+
+                    this->publish_state();
         }
     }
     else 
@@ -749,21 +760,27 @@ const char* SinclairACCNT::determine_fan_mode()
     bool    fanTurbo = (this->serialProcess_.data[protocol::REPORT_FAN_TURBO_BYTE] & protocol::REPORT_FAN_TURBO_MASK) != 0;
 
     ESP_LOGV(TAG, "Fan decode: spd=%d quiet=%d turbo=%d", fanSpeed, (int)fanQuiet, (int)fanTurbo);
-
-    if      (fanSpeed == 0 && !fanQuiet && !fanTurbo) return fan_modes::FAN_AUTO;
-    else if (fanSpeed == 1 && !fanQuiet && !fanTurbo) return fan_modes::FAN_LOW;
-    else if (fanSpeed == 1 &&  fanQuiet && !fanTurbo) return fan_modes::FAN_QUIET;
-    else if (fanSpeed == 2 && !fanQuiet && !fanTurbo) return fan_modes::FAN_MEDL;
-    else if (fanSpeed == 3 && !fanQuiet && !fanTurbo) return fan_modes::FAN_MED;
-    else if (fanSpeed == 4 && !fanQuiet && !fanTurbo) return fan_modes::FAN_MEDH;
-    else if (fanSpeed == 5 && !fanQuiet && !fanTurbo) return fan_modes::FAN_HIGH;
-    else if (fanSpeed == 5 && !fanQuiet &&  fanTurbo) return fan_modes::FAN_TURBO;
+    const char* res = nullptr;
+    if      (fanSpeed == 0 && !fanQuiet && !fanTurbo) res = fan_modes::FAN_AUTO;
+    else if (fanSpeed == 1 && !fanQuiet && !fanTurbo) res = fan_modes::FAN_LOW;
+    else if (fanSpeed == 1 &&  fanQuiet && !fanTurbo) res = fan_modes::FAN_QUIET;
+    else if (fanSpeed == 2 && !fanQuiet && !fanTurbo) res = fan_modes::FAN_MEDL;
+    else if (fanSpeed == 3 && !fanQuiet && !fanTurbo) res = fan_modes::FAN_MED;
+    else if (fanSpeed == 4 && !fanQuiet && !fanTurbo) res = fan_modes::FAN_MEDH;
+    else if (fanSpeed == 5 && !fanQuiet && !fanTurbo) res = fan_modes::FAN_HIGH;
+    else if (fanSpeed == 5 && !fanQuiet &&  fanTurbo) res = fan_modes::FAN_TURBO;
     else
     {
         ESP_LOGW(TAG, "Received unknown fan mode (spd=%d quiet=%d turbo=%d)", fanSpeed, (int)fanQuiet, (int)fanTurbo);
-        if (this->has_custom_fan_mode()) return this->get_custom_fan_mode().c_str();
-        return fan_modes::FAN_AUTO;
+        if (this->has_custom_fan_mode()) {
+            ESP_LOGI(TAG, "Falling back to custom fan mode: %s", this->get_custom_fan_mode().c_str());
+            return this->get_custom_fan_mode().c_str();
+        }
+        res = fan_modes::FAN_AUTO;
     }
+
+    ESP_LOGI(TAG, "Determined fan mode: %s (spd=%d quiet=%d turbo=%d)", res, fanSpeed, (int)fanQuiet, (int)fanTurbo);
+    return res;
 }
 
 std::string SinclairACCNT::determine_vertical_swing()
